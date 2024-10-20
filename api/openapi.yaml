@@ -1,0 +1,80 @@
+openapi: 3.0.0
+info:
+  title: Auth Session API
+  description: API for managing user sessions, including login and logout functionalities.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Development server
+paths:
+  /login:
+    post:
+      summary: Log in a user and create a session.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  description: The ID of the user to log in.
+      responses:
+        '200':
+          description: Successful login and session creation.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                      createdAt:
+                        type: string
+                        format: date-time
+                      expiresAt:
+                        type: string
+                        format: date-time
+                  token:
+                    type: string
+                    description: The session token.
+        '400':
+          description: Bad request due to missing user_id.
+        '500':
+          description: Internal server error.
+
+  /logout:
+    post:
+      summary: Log out a user and invalidate the session.
+      responses:
+        '200':
+          description: Successful logout.
+        '400':
+          description: Bad request due to missing session token.
+        '500':
+          description: Internal server error.
+
+  /validate:
+    post:
+      summary: Validate a user session.
+      responses:
+        '200':
+          description: Successful session validation.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: string
+        '400':
+          description: Bad request due to missing session token.
+        '401':
+          description: Unauthorized due to invalid or expired session token.
+        '500':
+          description: Internal server error.
+
