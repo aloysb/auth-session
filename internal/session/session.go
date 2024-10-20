@@ -1,16 +1,14 @@
 package session
 
 import (
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base32"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
 
-	_ "github.com/lib/pq"
+	"github.com/aloysb/auth-session/internal/utils"
 )
 
 // Constant defining how long a session is valid
@@ -59,10 +57,12 @@ func (s *SessionService) ValidateSession(token string) (*Session, error) {
 	var session Session
 	err := row.Scan(&session.Id, &session.UserId, &session.ExpiresAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case sql.ErrNoRows:
 			return nil, ErrInvalidSession
+		default:
+			return nil, fmt.Errorf("could not query session: %w", err)
 		}
-		return nil, fmt.Errorf("could not query session: %w", err)
 	}
 
 	// Check if the session is expired
@@ -108,9 +108,7 @@ func (s *SessionService) CreateSession(token, userId string) (*Session, error) {
 }
 
 func (s *SessionService) GenerateToken() string {
-	bytes := make([]byte, 12)
-	rand.Read(bytes)
-	return base32.StdEncoding.EncodeToString(bytes)
+	return utils.GenerateRandomString()
 }
 
 // invalidateSession removes a session from the database by ID
