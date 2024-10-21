@@ -34,6 +34,20 @@ func (m *MockSessionService) InvalidateSession(token string) error {
 	return nil
 }
 
+// MockBasicAuthService is a mock implementation of auth.BasicAuthService
+type MockBasicAuthService struct {
+	SignInFunc func(email string, password string) error
+	SignUpFunc func(email string, password string) error
+}
+
+func (m *MockBasicAuthService) SignIn(email string, password string) error {
+	return m.SignInFunc(email, password)
+}
+
+func (m *MockBasicAuthService) SignUp(email string, password string) error {
+	return m.SignUpFunc(email, password)
+}
+
 func TestLoginHandler_Success(t *testing.T) {
 	mockSessionService := &MockSessionService{
 		GenerateTokenFunc: func() string {
@@ -44,9 +58,18 @@ func TestLoginHandler_Success(t *testing.T) {
 		},
 	}
 
-	srv := New(mockSessionService)
+	basicAuthService := &MockBasicAuthService{
+		SignInFunc: func(email string, password string) error {
+			return nil
+		},
+		SignUpFunc: func(email string, password string) error {
+			return nil
+		},
+	}
 
-	req, err := http.NewRequest("POST", "/login", bytes.NewBufferString("user_id=testUser"))
+	srv := New(mockSessionService, basicAuthService)
+
+	req, err := http.NewRequest("POST", "/login", bytes.NewBufferString("email=valid@email.com&password=validPassword"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +80,7 @@ func TestLoginHandler_Success(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
 	var response SessionResponse
@@ -65,15 +88,16 @@ func TestLoginHandler_Success(t *testing.T) {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 
-	if response.Token != "mockToken" || response.Session.UserId != "testUser" {
+	if response.Token != "mockToken" || response.Session.UserId != "valid@email.com" {
 		t.Errorf("unexpected response: got %+v", response)
 	}
 }
 
 func TestLoginHandler_MissingUserID(t *testing.T) {
 	mockSessionService := &MockSessionService{}
+	basicAuthService := &MockBasicAuthService{}
 
-	srv := New(mockSessionService)
+	srv := New(mockSessionService, basicAuthService)
 
 	req, err := http.NewRequest("POST", "/login", nil)
 	if err != nil {
@@ -95,8 +119,9 @@ func TestValidateSessionHandler_Success(t *testing.T) {
 			return &session.Session{UserId: "testUser"}, nil
 		},
 	}
+	basicAuthService := &MockBasicAuthService{}
 
-	srv := New(mockSessionService)
+	srv := New(mockSessionService, basicAuthService)
 
 	req, err := http.NewRequest("POST", "/validate", nil)
 	if err != nil {
@@ -119,8 +144,9 @@ func TestValidateSessionHandler_Success(t *testing.T) {
 
 func TestValidateSessionHandler_NoCookie(t *testing.T) {
 	mockSessionService := &MockSessionService{}
+	basicAuthService := &MockBasicAuthService{}
 
-	srv := New(mockSessionService)
+	srv := New(mockSessionService, basicAuthService)
 
 	req, err := http.NewRequest("POST", "/validate", nil)
 	if err != nil {
@@ -142,8 +168,9 @@ func TestLogoutUserHandler_Success(t *testing.T) {
 			return nil
 		},
 	}
+	basicAuthService := &MockBasicAuthService{}
 
-	srv := New(mockSessionService)
+	srv := New(mockSessionService, basicAuthService)
 
 	req, err := http.NewRequest("POST", "/logout", nil)
 	if err != nil {

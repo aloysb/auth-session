@@ -22,7 +22,13 @@ var (
 	ErrUserNotFound       = errors.New("user not found")
 	ErrUserAlreadyExists  = errors.New("user already exists")
 	ErrInvalidEmail       = errors.New("invalid email")
+	ErrEmptyPassword      = errors.New("empty password")
 )
+
+type IBasicAuthService interface {
+	SignIn(email, password string) error
+	SignUp(email, password string) error
+}
 
 type BasicAuthService struct {
 	db *sql.DB
@@ -35,8 +41,8 @@ type User struct {
 	Salt     []byte
 }
 
-func New(db *sql.DB) BasicAuthService {
-	return BasicAuthService{db}
+func New(db *sql.DB) *BasicAuthService {
+	return &BasicAuthService{db}
 }
 
 func (b *BasicAuthService) SignUp(email, password string) error {
@@ -55,6 +61,10 @@ func (b *BasicAuthService) SignUp(email, password string) error {
 
 	if validEmail(email) == false {
 		return ErrInvalidEmail
+	}
+
+	if password == "" {
+		return ErrEmptyPassword
 	}
 
 	// Hash the password

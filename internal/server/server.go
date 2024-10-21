@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/aloysb/auth-session/internal/auth"
 	"github.com/aloysb/auth-session/internal/session"
 )
 
@@ -17,11 +18,13 @@ type SessionResponse struct {
 
 type Server struct {
 	sessionService session.ISessionService
+	authService    auth.IBasicAuthService
 }
 
-func New(sessionService session.ISessionService) *Server {
+func New(sessionService session.ISessionService, authService auth.IBasicAuthService) *Server {
 	return &Server{
 		sessionService: sessionService,
+		authService:    authService,
 	}
 }
 
@@ -30,6 +33,7 @@ func (s *Server) Start(port int) {
 	http.HandleFunc("POST /login", s.loginHandler)
 	http.HandleFunc("POST /logout", s.logoutHandler)
 	http.HandleFunc("POST /authenticate", s.validateSessionHandler)
+	http.HandleFunc("POST /signup", s.signupHandler)
 
 	fmt.Printf("Server is running on port: %d\n", port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
@@ -39,14 +43,35 @@ func (s *Server) Start(port int) {
 
 // loginHandler handles user login and creates a session
 func (s *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
-	userId := r.FormValue("user_id")
-	if userId == "" {
-		http.Error(w, "user_id is required", http.StatusBadRequest)
+	email := r.FormValue("email")
+	if email == "" {
+		http.Error(w, "email is required", http.StatusBadRequest)
 		return
 	}
 
+	password := r.FormValue("password")
+	if password == "" {
+		http.Error(w, "password is required", http.StatusBadRequest)
+		return
+	}
+
+	err := s.authService.SignIn(email, password)
+	if err != nil {
+		switch err {
+		case auth.ErrInvalidCredentials:
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		case auth.ErrUserNotFound:
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		default:
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
 	token := s.sessionService.GenerateToken()
-	session, err := s.sessionService.CreateSession(token, userId)
+	session, err := s.sessionService.CreateSession(token, email)
 
 	// Create the response struct
 	response := SessionResponse{
@@ -69,6 +94,42 @@ func (s *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
 	// Write the JSON response
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(responseJSON)
+}
+
+func (s *Server) signupHandler(w http.ResponseWriter, r *http.Request) {
+	email := r.FormValue("email")
+	if email == "" {
+		http.Error(w, "email is required", http.StatusBadRequest)
+		return
+	}
+
+	password := r.FormValue("password")
+	if password == "" {
+		http.Error(w, "password is required", http.StatusBadRequest)
+		return
+	}
+
+	err := s.authService.SignUp(email, password)
+
+	if err != nil {
+		fmt.Println(err)
+		switch err {
+		case auth.ErrInvalidEmail:
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		case auth.ErrUserAlreadyExists:
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		case auth.ErrEmptyPassword:
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		default:
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	s.loginHandler(w, r)
 }
 
 // validateSessionHandler checks if the session is valid

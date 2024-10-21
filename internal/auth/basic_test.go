@@ -56,7 +56,7 @@ func setupService() BasicAuthService {
 
 	Db = db
 
-	return New(db)
+	return *New(db)
 }
 
 func teardownTestDB() {
