@@ -37,7 +37,7 @@ jobs:
           # Build and push the image
           docker buildx build \
             --platform linux/arm64/v8 \
-            --file Dockerfile.prod \
+            --file Dockerfile \
             --tag $IMAGE_ID:$VERSION \
             --label "runnumber=${GITHUB_RUN_ID}" \
             --push \
