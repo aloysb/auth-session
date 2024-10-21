@@ -1,0 +1,48 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  IMAGE_NAME: auth
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        run: |
+          docker buildx create --use
+          docker buildx inspect --bootstrap
+
+      - name: Log in to registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push image
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
+          # Lower case
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          VERSION=prod
+          
+          # Build and push the image
+          docker buildx build \
+            --platform linux/arm64/v8 \
+            --file Dockerfile.prod \
+            --tag $IMAGE_ID:$VERSION \
+            --label "runnumber=${GITHUB_RUN_ID}" \
+            --push \
+            .
+
+      - name: Confirm image push
+        run: |
+          echo "Image pushed to ${{ env.IMAGE_ID }} with tag ${{ env.VERSION }}"
