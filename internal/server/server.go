@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/aloysb/auth-session/internal/auth"
@@ -139,32 +140,45 @@ func (s *Server) signupHandler(w http.ResponseWriter, r *http.Request) {
 
 // validateSessionHandler checks if the session is valid
 func (s *Server) validateSessionHandler(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(session.COOKIE_NAME)
+	// Log the request and headers
+	slog.Info("Received request: %s %s", r.Method, r.URL.Path)
+	slog.Info("Request Headers: %v", r.Header)
 
+	// Attempt to get the session cookie
+	cookie, err := r.Cookie(session.COOKIE_NAME)
 	if err != nil {
 		switch {
 		case errors.Is(err, http.ErrNoCookie):
+			slog.Info("No session cookie found")
 			http.Error(w, "cookie not found", http.StatusBadRequest)
 		default:
+			slog.Info("Error retrieving cookie: %v", err)
 			http.Error(w, "server error", http.StatusInternalServerError)
 		}
 		return
 	}
 
-	ses, err := s.sessionService.ValidateSession(cookie.Value)
+	slog.Info("Session Cookie: %v", cookie.Value)
 
+	// Validate the session using the cookie value
+	ses, err := s.sessionService.ValidateSession(cookie.Value)
 	if err != nil {
 		switch {
 		case errors.Is(err, session.ErrInvalidSession):
+			slog.Info("Invalid session")
 			http.Error(w, "Invalid session", http.StatusUnauthorized)
 		case errors.Is(err, session.ErrExpiredSession):
+			slog.Info("Expired session")
 			http.Error(w, "Expired session", http.StatusUnauthorized)
 		default:
+			slog.Info("Error validating session: %v", err)
 			http.Error(w, "Error validating session", http.StatusInternalServerError)
 		}
-
+		return
 	}
 
+	// Log successful session validation
+	slog.Info("Session validated for User ID: %s", ses.UserId)
 	w.Write([]byte(ses.UserId))
 }
 
