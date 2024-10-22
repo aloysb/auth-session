@@ -13,7 +13,6 @@ import (
 // Response struct to encapsulate session and token
 type SessionResponse struct {
 	Session session.Session `json:"session"` // The session data
-	Token   string          `json:"token"`   // The session token
 }
 
 type Server struct {
@@ -71,12 +70,17 @@ func (s *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token := s.sessionService.GenerateToken()
-	session, err := s.sessionService.CreateSession(token, email)
+	sess, err := s.sessionService.CreateSession(token, email)
 
-	// Create the response struct
-	response := SessionResponse{
-		Session: *session,
-		Token:   token,
+	cookie := http.Cookie{
+		Name:     session.COOKIE_NAME,
+		Value:    token,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		// TODO: change to secure
+		Secure: false,
+		MaxAge: 0,
+		Path:   "/",
 	}
 
 	if err != nil {
@@ -85,7 +89,7 @@ func (s *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Serialize the session struct to JSON
-	responseJSON, err := json.Marshal(response)
+	responseJSON, err := json.Marshal(&SessionResponse{Session: *sess})
 	if err != nil {
 		http.Error(w, "Unable to serialize session", http.StatusInternalServerError)
 		return
@@ -93,6 +97,7 @@ func (s *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Write the JSON response
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Set-Cookie", cookie.String())
 	w.Write(responseJSON)
 }
 

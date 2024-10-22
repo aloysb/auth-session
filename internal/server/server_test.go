@@ -88,8 +88,11 @@ func TestLoginHandler_Success(t *testing.T) {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 
-	if response.Token != "mockToken" || response.Session.UserId != "valid@email.com" {
+	if response.Session.UserId != "valid@email.com" {
 		t.Errorf("unexpected response: got %+v", response)
+	}
+	if len(rr.Result().Cookies()) == 0 {
+		t.Errorf("expected cookie to be set")
 	}
 }
 
