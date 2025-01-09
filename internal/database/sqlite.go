@@ -7,9 +7,13 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+type SQLite struct {
+	path string
+}
+
 // Sqlite adapter
-func Sqlite(dbFile string) *sql.DB {
-	db, err := sql.Open("sqlite3", dbFile)
+func (d *SQLite) Init() *sql.DB {
+	db, err := sql.Open("sqlite3", d.path)
 	if err != nil {
 		log.Fatalf("failed to set up test table: %s", err)
 	}

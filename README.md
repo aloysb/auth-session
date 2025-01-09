@@ -17,6 +17,12 @@ The server provides two routes:
 
 See the open API spec for more information in the `/api/openapi.yaml` file.
 
+## Configuration
+
+The configuration is done via environment variables:
+- `DATABASE_URL` - The database connection string. Currently only SQLite is supported
+- `DATABASE_TYPE` - The database type, defaults to `sqlite`. Currently only `sqlite` is supported
+
 ## Limitations
 
 - The authentication has to be handled by the client at this stage, this library is purely a session manager.
@@ -24,6 +30,5 @@ See the open API spec for more information in the `/api/openapi.yaml` file.
 - The listening port is hardcoded to 8080.
 
 ## Roadmap
-- Add basic authentication
 - Add support for PostgreSQL
 - Add dockerfile and docker-compose example

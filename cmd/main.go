@@ -7,10 +7,11 @@ import (
 	"github.com/aloysb/auth-session/internal/session"
 )
 
-const DB_FILE = "sessions.db"
-
 func main() {
-	db := database.Sqlite(DB_FILE)
+	db, err := database.Init()
+	if err != nil {
+		panic(err)
+	}
 	// Ensure the database connection is closed when the program exits
 	defer db.Close()
 	sessionService := session.New(db)
